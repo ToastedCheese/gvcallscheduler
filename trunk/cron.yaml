@@ -1,0 +1,4 @@
+cron:
+- description: google voice calendar schedule check
+  url: /
+  schedule: every 1 minutes
