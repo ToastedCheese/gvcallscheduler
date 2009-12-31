@@ -6,7 +6,7 @@ email=YOUR_EMAIL
 password=YOUR_PASSWORD
 
 [gvoice]
-# Number to place calls from (eg, your google voice number)
+# Number to place calls from
 forwardingNumber=FORWARDING_NUMBER
 
 # Default phoneType for your forwardingNumber as defined below
