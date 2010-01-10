@@ -39,14 +39,14 @@ class GVCalendar:
 		query.ctz = 'UTC'
 		return self.cal_client.CalendarQuery(query)
 			
-	def GVPlaceCall(self, outnumber):
+	def GVPlaceCall(self, outnumber, ringnumber, ringnumbertype):
 		gv = GoogleVoiceLogin(config.email, config.password)
 		if not gv.logged_in:
 			logging.error("Could not log in to GV with provided credentials")
 			sys.exit(1)
 		number_dialer = NumberDialer(gv.opener, gv.key)
-		number_dialer.forwarding_number = config.forwardingNumber
-		number_dialer.forwarding_number_type = config.phoneType
+		number_dialer.forwarding_number = ringnumber
+		number_dialer.forwarding_number_type = ringnumbertype
 		number_dialer.place_call(outnumber)
 		if not number_dialer.response:
 			logging.error("Call Failed, response: %s" % number_dialer.response)	
@@ -80,8 +80,16 @@ def main():
 				starttime = an_event.when[0].start_time
 				# Check if the call for this event was already placed
 				if (not gvc.processed_events[starttime]) or (pn not in gvc.processed_events[starttime]):
-					gvc.GVPlaceCall(pn)
-					logging.info('Event: %s, Calling: %s' % (an_event.title.text, pn))
+					if ("gvringnumber" in kd):
+						rn = gvc.FormatPhoneNumber(kd['gvringnumber'])
+					else:
+						rn = config.forwardingNumber
+					if ("gvringtype" in kd):
+						rt = kd['gvringtype']
+					else:
+						rt = config.phoneType
+					gvc.GVPlaceCall(pn, rn, rt)
+					logging.info('Event: %s, Calling: %s, Ringing: %s (Type: %s)' % (an_event.title.text, pn, rn, rt))
 					gvc.processed_events[starttime].add(pn)
 					#logging.debug('Adding to memcache: [%s] = (%s)' % (starttime, pn))
 				#else:
