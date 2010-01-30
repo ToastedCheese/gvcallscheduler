@@ -57,12 +57,13 @@ class GVCalendar:
 			for match in re.finditer('^[ \t]*([^=\n]+) *= *(.*)$', line, re.M)]) if line is not None else {}
 		
 	def FormatPhoneNumber(self, innumber):
-		pn = re.sub("[^0-9]", "", innumber)
-		#add 1st char if it's not 1
-		if (len(pn) < 11) and (pn[0] != "1"):
+		pn = re.sub("[^0-9+]", "", innumber)
+		#add 1 if it's 10 digits without '+'
+		if (len(pn) == 10) and (pn[0] != "1") and (pn[0] != "+"):
 		    pn = '1' + pn
-		#add "+" as 1st char 
-		pn = '+' + pn	
+		#add "+" as 1st char
+		if (pn[0] != "+"): 
+			pn = '+' + pn	
 		return pn
 		
 def main():
