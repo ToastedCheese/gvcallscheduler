@@ -19,7 +19,7 @@ class URLOpener:
 	                    payload=data,
 	                    method=method,
 	                    headers=self._getHeaders(self.cookie),
-	                    allow_truncated=False,
+	                    allow_truncated=True,
 	                    follow_redirects=False,
 	                    deadline=10
 	                    )
