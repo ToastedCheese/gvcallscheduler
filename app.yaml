@@ -6,4 +6,6 @@ api_version: 1
 handlers:
 - url: /
   script: GVCalendar.py
-  login: admin
+
+- url: /.*
+  script: GVCalendar.py
