@@ -2,7 +2,7 @@
 # Google Account email address (one associated w/ your Voice account)
 email=YOUR_EMAIL
 
-# Raw password used or login
+# Raw password used for login
 password=YOUR_PASSWORD
 
 [gvoice]

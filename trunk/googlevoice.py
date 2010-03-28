@@ -52,12 +52,11 @@ class GoogleVoiceLogin:
 		self.opener = URLOpener()
 		
 		# Define URLs
-		self.loing_page_url = 'https://www.google.com/accounts/ServiceLogin'
+		self.login_page_url = 'https://www.google.com/accounts/ServiceLogin'
 		self.authenticate_url = 'https://www.google.com/accounts/ServiceLoginAuth' 
 		self.gv_home_page_url = 'https://www.google.com/voice/#inbox'
-		
 		# Load sign in page
-		login_page_contents = self.opener.open(self.loing_page_url).content
+		login_page_contents = self.opener.open(self.login_page_url).content
 
 		# Find GALX value
 		galx_match_obj = re.search(r'name="GALX"\s*value="([^"]+)"', login_page_contents, re.IGNORECASE)
@@ -73,20 +72,26 @@ class GoogleVoiceLogin:
 		})
 
 		# Login
-		self.opener.open(self.authenticate_url, login_params)
-
-		# Open GV home page
-		gv_home_page_contents = self.opener.open(self.gv_home_page_url).content
-
-		# Fine _rnr_se value
-		key = re.search('name="_rnr_se".*?value="(.*?)"', gv_home_page_contents)
+		self.logged_in = False
+		self.post_response = self.opener.open(self.authenticate_url, login_params)
+		if self.post_response.status_code == 200:
+			# Open GV home page
+			gv_home_page_contents = self.opener.open(self.gv_home_page_url).content
 		
-		if not key:
-			self.logged_in = False
-		else:
-			self.logged_in = True
-			self.key = key.group(1)
-		
+			# Fine _rnr_se value
+			key = re.search('name="_rnr_se".*?value="(.*?)"', gv_home_page_contents)
+
+			if key:
+				self.logged_in = True
+				self.key = key.group(1)
+
+class GoogleVoiceLogout:			
+	def __init__(self):
+		# Set up our opener
+		self.opener = URLOpener()
+		# Log out
+		self.opener.open('https://www.google.com/voice/account/signout')
+
 class ContactLoader():
 	def __init__(self, opener):
 		self.opener = opener
