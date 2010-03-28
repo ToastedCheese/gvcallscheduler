@@ -138,14 +138,19 @@ class GVCalendar(webapp.RequestHandler):
 	def GVPlaceCall(self, outnumber, ringnumber, ringnumbertype):
 		gv = GoogleVoiceLogin(config.email, config.password)
 		if not gv.logged_in:
-			logging.error("Could not log in to GV with provided credentials")
-			sys.exit(1)
-		number_dialer = NumberDialer(gv.opener, gv.key)
-		number_dialer.forwarding_number = ringnumber
-		number_dialer.forwarding_number_type = ringnumbertype
-		number_dialer.place_call(outnumber)
+			logging.error("Could not log in to GV with provided credentials as %s, Status=%d, Error=%s" % (config.email, gv.post_response.status_code, gv.post_response.headers.get('Error')))
+			# Fine Captcha token value
+			key = re.search('https://www.google.com/accounts/Captcha\?ctoken=(.*?)"', gv.post_response.content)
+			if key:
+				logging.error("Captcha required, please visit 'https://www.google.com/accounts/DisplayUnlockCaptcha' to unlock Captcha")
+		else:
+			number_dialer = NumberDialer(gv.opener, gv.key)
+			number_dialer.forwarding_number = ringnumber
+			number_dialer.forwarding_number_type = ringnumbertype
+			number_dialer.place_call(outnumber)
 		if not number_dialer.response:
 			logging.error("Call Failed, response: %s" % number_dialer.response)	
+		GoogleVoiceLogout();
 
 	def ParseString(self, line):
 	 	# Parse string for "Key=Value" tokens, one token per line
@@ -161,18 +166,36 @@ class GVCalendar(webapp.RequestHandler):
 		if (pn[0] != "+"): 
 			pn = '+' + pn	
 		return pn
-	
-class DeleteTokens(GVCalendar):
+			
+class TestGVLogin(GVCalendar):
 	def get(self):
+		email = self.request.get('email')
+		password = self.request.get('password')
+		if email == '':
+			email = config.email
+		if password == '':
+			password = config.password
+		gv = GoogleVoiceLogin(email, password)
 		self.response.headers['Content-Type'] = 'text/html'
 		self.response.out.write('<html><head><title>GV Scheduler</title></head><body><div id="main">')
-		deletetokens()
-		self.response.out.write('Session token(s) deleted')
+		if not gv.logged_in:
+			self.response.out.write('Google Voice Login as "%s" - <font color=red>Failed</font><BR><HR>' % email)
+			self.response.out.write("Status=%d<BR>" % gv.post_response.status_code)
+			self.response.out.write("Error=%s<BR><HR>" % gv.post_response.headers.get('Error'))	
+			# Fine Captcha token value
+			key = re.search('https://www.google.com/accounts/Captcha\?ctoken=(.*?)"', gv.post_response.content)
+			if key:
+				self.response.out.write("Captcha required - token:%s<BR><BR>" % key.group(1))
+				self.response.out.write("<A HREF='https://www.google.com/accounts/DisplayUnlockCaptcha'>Please click here to unlock Captcha</A>")
+				#self.response.out.write(gv.post_response.content)
+		else:
+			self.response.out.write('Google Voice Login as "%s" - <font color=green>OK</font>' % email)
 		self.response.out.write('</div></body></html>')
-		
+		GoogleVoiceLogout();
+
 		
 application = webapp.WSGIApplication([('/', GVCalendar),
-									  ('/deletetokens', DeleteTokens)],
+									  ('/testgvlogin', TestGVLogin)],
 									 debug=True)
 
 def main():
