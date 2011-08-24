@@ -1,17 +1,17 @@
 [auth]
 # Google Account email address (one associated w/ your Voice account)
-email=YOUR_EMAIL
+email=
 
-# Raw password used for login
-password=YOUR_PASSWORD
+# Raw password used for login. Use Application-specific password if you enabled 2-step verification. 
+password=
 
 [gvoice]
-# Number to place calls from
-forwardingNumber=FORWARDING_NUMBER
+# Default number to place calls from (must be registered as one of your google voice numbers)
+forwardingNumber=
 
 # Default phoneType for your forwardingNumber as defined below
 #  1 - Home
 #  2 - Mobile
 #  3 - Work
 #  7 - Gizmo
-phoneType=PHONE_TYPE
+phoneType=2

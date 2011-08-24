@@ -7,6 +7,7 @@ import re
 class URLOpener:
   def __init__(self):
       self.cookie = Cookie.SimpleCookie()
+      self.auth = None
     
   def open(self, url, data = None):
 	if data is None:
@@ -36,6 +37,8 @@ class URLOpener:
                  'User-Agent' : 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.2) Gecko/20090729 Firefox/3.5.2 (.NET CLR 3.5.30729)',
                  'Cookie' : self._makeCookieHeader(cookie)
                   }
+      if self.auth is not None:
+           headers['Authorization'] = 'GoogleLogin auth=%s' % self.auth
       return headers
 
   def _makeCookieHeader(self, cookie):
@@ -47,43 +50,41 @@ class URLOpener:
 class GoogleVoiceLogin:
 	def __init__(self, email, password):
 		# Set up our opener
-		#self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor())
-		#urllib2.install_opener(self.opener)
 		self.opener = URLOpener()
 		
 		# Define URLs
-		self.login_page_url = 'https://www.google.com/accounts/ServiceLogin'
-		self.authenticate_url = 'https://www.google.com/accounts/ServiceLoginAuth' 
-		self.gv_home_page_url = 'https://www.google.com/voice/#inbox'
-		# Load sign in page
-		login_page_contents = self.opener.open(self.login_page_url).content
-
-		# Find GALX value
-		galx_match_obj = re.search(r'name="GALX"\s*value="([^"]+)"', login_page_contents, re.IGNORECASE)
-		
-		galx_value = galx_match_obj.group(1) if galx_match_obj.group(1) is not None else ''
+		login_page_url = 'https://www.google.com/accounts/ClientLogin'
+		gv_home_page_url = 'https://www.google.com/voice/#inbox'
 		
 		# Set up login credentials
 		login_params = urllib.urlencode( { 
 			'Email' : email,
 			'Passwd' : password,
-			'continue' : 'https://www.google.com/voice/account/signin',
-			'GALX': galx_value
+			'accountType' : 'HOSTED_OR_GOOGLE',
+			'service': 'grandcentral',
+			'source': 'GVCalendar'
 		})
 
 		# Login
 		self.logged_in = False
-		self.post_response = self.opener.open(self.authenticate_url, login_params)
+		self.post_response = self.opener.open(login_page_url, login_params)
 		if self.post_response.status_code == 200:
-			# Open GV home page
-			gv_home_page_contents = self.opener.open(self.gv_home_page_url).content
-		
-			# Fine _rnr_se value
-			key = re.search('name="_rnr_se".*?value="(.*?)"', gv_home_page_contents)
+			
+			# Find AUTH value
+			auth = re.search('Auth=(.+)\n', self.post_response.content, re.IGNORECASE)
+			if auth:
+				self.opener.auth = auth.group(1)
+				
+				# Open GV home page
+				self.gv_home_page_contents = self.opener.open(gv_home_page_url).content
 
-			if key:
-				self.logged_in = True
-				self.key = key.group(1)
+				# Fine _rnr_se value
+				key = re.search('name="_rnr_se".*?value="(.*?)"', self.gv_home_page_contents)
+
+				if key:
+					self.logged_in = True
+					self.key = key.group(1)
+				
 
 class GoogleVoiceLogout:			
 	def __init__(self):
@@ -92,85 +93,6 @@ class GoogleVoiceLogout:
 		# Log out
 		self.opener.open('https://www.google.com/voice/account/signout')
 
-class ContactLoader():
-	def __init__(self, opener):
-		self.opener = opener
-		self.contacts_csv_url = "http://mail.google.com/mail/contacts/data/export"
-		self.contacts_csv_url += "?groupToExport=^Mine&exportType=ALL&out=OUTLOOK_CSV"
-		
-		# Load ALL Google Contacts into csv dictionary
-		self.contacts = csv.DictReader(self.opener.open(self.contacts_csv_url))
-		
-		# Create dictionary to store contacts and groups in an easier format
-		self.contact_group = {}
-		# Assigned each person to a group that we can get at later
-		for row in self.contacts:
-			if row['First Name'] != '':
-				for category in row['Categories'].split(';'):
-					if category == '':
-						category  = 'Ungrouped'
-					if category not in self.contact_group:
-						self.contact_group[category] = [Contact(row)]
-					else:
-						self.contact_group[category].append(Contact(row))
-		
-		# Load contacts into a list of tuples... 
-		# [(1, ('group_name', [contact_list])), (2, ('group_name', [contact_list]))]
-		self.contacts_by_group_list = [(id  + 1, group_contact_item) 
-									   for id, group_contact_item in enumerate(self.contact_group.items())]
-	
-class Contact():
-	def __init__(self,contact_detail):
-		self.first_name = contact_detail['First Name'].strip()
-		self.last_name = contact_detail['Last Name'].strip()
-		self.mobile = contact_detail['Mobile Phone'].strip()
-		self.email = contact_detail['E-mail Address'].strip()
-	
-	def __str__(self):
-		return self.first_name + ' ' + self.last_name
-				
-# Class to assist in selected contacts by groups 
-class ContactSelector():
-	def __init__(self, contacts_by_group_list):
-		self.contacts_by_group_list = contacts_by_group_list
-		self.contact_list = None
-
-	def get_group_list(self):
-		return [(item[0], item[1][0]) for item in self.contacts_by_group_list]
-		
-	def set_selected_group(self, group_id):
-		self.contact_list  = self.contacts_by_group_list[group_id - 1][1][1]
-		
-	# Return the contact list so far
-	def get_contacts_list(self):
-		return [(id + 1, contact) for id, contact in enumerate(self.contact_list)]
-		
-	# Accept a list of indexes to remove from the current contact list	
-	# Assumes 1 based list being passed in
-	def remove_from_contact_list(self, contacts_to_remove_list):
-		if self.contact_list == None:
-			return
-		for id in contacts_to_remove_list:
-			if id in range(0, len(self.contact_list)+1):
-				self.contact_list[id - 1] = None
-		self.contact_list = [contact for contact in self.contact_list if contact is not None]	
-	
-class NumberRetriever():
-	def __init__(self, opener):
-		self.opener = opener
-		self.phone_numbers_url = 'https://www.google.com/voice/settings/tab/phones'
-		phone_numbers_page_content = self.opener.open(self.phone_numbers_url).content
-		
-		# Build list of all numbers and their aliases
-		self.phone_number_items = [(match.group(1), match.group(2), match.group(3)) 
-								   for match 
-								   in re.finditer('"name":"([^"]+)","phoneNumber":"([^"]+)","type":([0-9])', 
-														    phone_numbers_page_content)]
-		
-	def get_phone_numbers(self):
-		return [(id + 1, (phone_number_item)) 
-			    for id, phone_number_item 
-			    in enumerate(self.phone_number_items)]
 		
 class TextSender():
 	def __init__(self, opener, key):

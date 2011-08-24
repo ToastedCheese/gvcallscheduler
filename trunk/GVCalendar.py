@@ -148,8 +148,8 @@ class GVCalendar(webapp.RequestHandler):
 			number_dialer.forwarding_number = ringnumber
 			number_dialer.forwarding_number_type = ringnumbertype
 			number_dialer.place_call(outnumber)
-		if not number_dialer.response:
-			logging.error("Call Failed, response: %s" % number_dialer.response)	
+			if not number_dialer.response:
+				logging.error("Call Failed, response: %s" % number_dialer.response)	
 		GoogleVoiceLogout();
 
 	def ParseString(self, line):
@@ -182,8 +182,9 @@ class TestGVLogin(GVCalendar):
 			self.response.out.write('Google Voice Login as "%s" - <font color=red>Failed</font><BR><HR>' % email)
 			self.response.out.write("Status=%d<BR>" % gv.post_response.status_code)
 			self.response.out.write("Error=%s<BR><HR>" % gv.post_response.headers.get('Error'))	
+			self.response.out.write("Content=%s<BR>" % gv.gv_home_page_contents)	
 			# Fine Captcha token value
-			key = re.search('https://www.google.com/accounts/Captcha\?ctoken=(.*?)"', gv.post_response.content)
+			key = re.search('https://www.google.com/accounts/Captcha\?ctoken=(.*?)"', gv.gv_home_page_contents)
 			if key:
 				self.response.out.write("Captcha required - token:%s<BR><BR>" % key.group(1))
 				self.response.out.write("<A HREF='https://www.google.com/accounts/DisplayUnlockCaptcha'>Please click here to unlock Captcha</A>")
